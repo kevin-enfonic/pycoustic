@@ -5,7 +5,164 @@ import datetime as dt
 
 
 class Log:
-    def __init__(self, path=""):
+    _B_K_Colmap = {
+        "LAF1.0": "L1 A",
+        "LAF5.0": "L5 A",
+        "LAF10.0": "L10 A",
+        "LAF50.0": "L50 A",
+        "LAF90.0": "L90 A",
+        "LAF95.0": "L95 A",
+        "LAF99.0": "L99 A",
+        "LAFmax": "Lmax A",
+        "LAFmin": "Lmin A",
+        "LAeq": "Leq A",
+        "LCFmax": "Lmax C",
+        "LCFmin": "Lmin C",
+        "LCeq": "Leq C",
+        "LCpeak": "Lpeak C",
+        "LZeq (16 Hz-250 Hz)": "Leq(16 Hz-250Hz) Z",
+    }
+    _B_K_Spectramap = {
+        # 1/3 octave
+        "LZFmax 12.5Hz"	: "Lmax 12.5",
+        "LZFmax 16Hz"	: "Lmax 16",
+        "LZFmax 20Hz"	: "Lmax 20",
+        "LZFmax 25Hz"	: "Lmax 25",
+        "LZFmax 31.5Hz"	: "Lmax 31.5",
+        "LZFmax 40Hz"	: "Lmax 40",
+        "LZFmax 50Hz"	: "Lmax 50",	
+        "LZFmax 63Hz"	: "Lmax 63",
+        "LZFmax 80Hz"	: "Lmax 80",
+        "LZFmax 100Hz"	: "Lmax 100",
+        "LZFmax 125Hz"	: "Lmax 125",
+        "LZFmax 160Hz"	: "Lmax 160",
+        "LZFmax 200Hz"	: "Lmax 200",	
+        "LZFmax 250Hz"	: "Lmax 250",
+        "LZFmax 315Hz"	: "Lmax 315",
+        "LZFmax 400Hz"	: "Lmax 400",	
+        "LZFmax 500Hz"	: "Lmax 500",
+        "LZFmax 630Hz"	: "Lmax 630",
+        "LZFmax 800Hz"	: "Lmax 800",	
+        "LZFmax 1kHz"	: "Lmax 1000",
+        "LZFmax 1.25kHz"	: "Lmax 1250",
+        "LZFmax 1.6kHz"	: "Lmax 1600",	
+        "LZFmax 2kHz"	: "Lmax 2000",
+        "LZFmax 2.5kHz"	: "Lmax 2500",	
+        "LZFmax 3.15kHz"	: "Lmax 3150",
+        "LZFmax 4kHz"	: "Lmax 4000",
+        "LZFmax 5kHz"	: "Lmax 5000",
+        "LZFmax 6.3kHz"	: "Lmax 6300",	
+        "LZFmax 8kHz"	: "Lmax 8000",
+        "LZFmax 10kHz"	: "Lmax 10000",	
+        "LZFmax 12.5kHz"	: "Lmax 12500",
+        "LZFmax 16kHz"	: "Lmax 16000",
+
+        "LZFmin 12.5Hz": "Lmin 12.5",
+        "LZFmin 16Hz": "Lmin 16",
+        "LZFmin 20Hz": "Lmin 20",
+        "LZFmin 25Hz": "Lmin 25",
+        "LZFmin 31.5Hz": "Lmin 31.5",
+        "LZFmin 40Hz": "Lmin 40",
+        "LZFmin 50Hz": "Lmin 50",
+        "LZFmin 63Hz": "Lmin 63",
+        "LZFmin 80Hz": "Lmin 80",
+        "LZFmin 100Hz": "Lmin 100",
+        "LZFmin 125Hz": "Lmin 125",
+        "LZFmin 160Hz": "Lmin 160",
+        "LZFmin 200Hz": "Lmin 200",
+        "LZFmin 250Hz": "Lmin 250",
+        "LZFmin 315Hz": "Lmin 315",
+        "LZFmin 400Hz": "Lmin 400",
+        "LZFmin 500Hz": "Lmin 500",
+        "LZFmin 630Hz": "Lmin 630",
+        "LZFmin 800Hz": "Lmin 800",
+        "LZFmin 1kHz": "Lmin 1000",
+        "LZFmin 1.25kHz": "Lmin 1250",
+        "LZFmin 1.6kHz": "Lmin 1600",
+        "LZFmin 2kHz": "Lmin 2000",
+        "LZFmin 2.5kHz": "Lmin 2500",
+        "LZFmin 3.15kHz": "Lmin 3150",
+        "LZFmin 4kHz": "Lmin 4000",
+        "LZFmin 5kHz": "Lmin 5000",
+        "LZFmin 6.3kHz": "Lmin 6300",
+        "LZFmin 8kHz": "Lmin 8000",
+        "LZFmin 10kHz": "Lmin 10000",
+        "LZFmin 12.5kHz": "Lmin 12500",
+        "LZFmin 16kHz": "Lmin 16000",
+
+        "LZeq 12.5Hz": "Leq 12.5",
+        "LZeq 16Hz": "Leq 16",
+        "LZeq 20Hz": "Leq 20",
+        "LZeq 25Hz": "Leq 25",
+        "LZeq 31.5Hz": "Leq 31.5",
+        "LZeq 40Hz": "Leq 40",
+        "LZeq 50Hz": "Leq 50",
+        "LZeq 63Hz": "Leq 63",
+        "LZeq 80Hz": "Leq 80",
+        "LZeq 100Hz": "Leq 100",
+        "LZeq 125Hz": "Leq 125",
+        "LZeq 160Hz": "Leq 160",
+        "LZeq 200Hz": "Leq 200",
+        "LZeq 250Hz": "Leq 250",
+        "LZeq 315Hz": "Leq 315",
+        "LZeq 400Hz": "Leq 400",
+        "LZeq 500Hz": "Leq 500",
+        "LZeq 630Hz": "Leq 630",
+        "LZeq 800Hz": "Leq 800",
+        "LZeq 1kHz": "Leq 1000",
+        "LZeq 1.25kHz": "Leq 1250",
+        "LZeq 1.6kHz": "Leq 1600",
+        "LZeq 2kHz": "Leq 2000",
+        "LZeq 2.5kHz": "Leq 2500",
+        "LZeq 3.15kHz": "Leq 3150",
+        "LZeq 4kHz": "Leq 4000",
+        "LZeq 5kHz": "Leq 5000",
+        "LZeq 6.3kHz": "Leq 6300",
+        "LZeq 8kHz": "Leq 8000",
+        "LZeq 10kHz": "Leq 10000",
+        "LZeq 12.5kHz": "Leq 12500",
+        "LZeq 16kHz": "Leq 16000",
+
+        # 1/1 octave
+        "LZFmax_O 12.5Hz"	: "Lmax 12.5",
+        "LZFmax_O 16Hz"	: "Lmax 16",
+        "LZFmax_O 31.5Hz"	: "Lmax 31.5",	
+        "LZFmax_O 63Hz"	: "Lmax 63",	
+        "LZFmax_O 125Hz"	: "Lmax 125",	
+        "LZFmax_O 250Hz"	: "Lmax 250",	
+        "LZFmax_O 500Hz"	: "Lmax 500",	
+        "LZFmax_O 1kHz"	: "Lmax 1000",	
+        "LZFmax_O 2kHz"	: "Lmax 2000",	
+        "LZFmax_O 4kHz"	: "Lmax 4000",	
+        "LZFmax_O 8kHz"	: "Lmax 8000",	
+        "LZFmax_O 16kHz"	: "Lmax 16000",
+
+        "LZFmin_O 16Hz"	: "Lmin 16",	
+        "LZFmin_O 31.5Hz"	: "Lmin 31.5",	
+        "LZFmin_O 63Hz"	: "Lmin 63",	
+        "LZFmin_O 125Hz"	: "Lmin 125",	
+        "LZFmin_O 250Hz"	: "Lmin 250",	
+        "LZFmin_O 500Hz"	: "Lmin 500",	
+        "LZFmin_O 1kHz"	: "Lmin 1000",	
+        "LZFmin_O 2kHz"	: "Lmin 2000",	
+        "LZFmin_O 4kHz"	: "Lmin 4000",	
+        "LZFmin_O 8kHz"	: "Lmin 8000",	
+        "LZFmin_O 16kHz"	: "Lmin 16000",
+
+        "LZeq_O 16Hz"	: "Leq 16",	
+        "LZeq_O 31.5Hz"	: "Leq 31.5",	
+        "LZeq_O 63Hz"	: "Leq 63",	
+        "LZeq_O 125Hz"	: "Leq 125",	
+        "LZeq_O 250Hz"	: "Leq 250",	
+        "LZeq_O 500Hz"	: "Leq 500",	
+        "LZeq_O 1kHz"	: "Leq 1000",	
+        "LZeq_O 2kHz"	: "Leq 2000",	
+        "LZeq_O 4kHz"	: "Leq 4000",	
+        "LZeq_O 8kHz"	: "Leq 8000",	
+        "LZeq_O 16kHz"	: "Leq 16000",
+    }
+
+    def __init__(self, path="", manufacturer=""):
         #TODO C:\Users\tonyr\PycharmProjects\pycoustic\.venv2\Lib\site-packages\pycoustic\log.py:15: UserWarning:
         #Parsing dates in %Y/%m/%d %H:%M format when dayfirst=True was specified. Pass `dayfirst=False` or specify a format to silence this warning.
         """
@@ -14,18 +171,65 @@ class Log:
         :param path: the file path for the .csv noise data
         """
         self._filepath = path
-        self._master = pd.read_csv(
-            path,
-            index_col="Time",
-            parse_dates=["Time"],
-            date_format="%d/%m/%Y %H:%M",  # Explicit format to avoid the dayfirst warning
-            dayfirst=True,  # Optional: include for clarity; default is False
-        )
+        
+        if path.endswith(".csv"):
+            self._master = pd.read_csv(
+                path,
+                index_col="Time",
+                parse_dates=["Time"],
+                date_format="%d/%m/%Y %H:%M",  # Explicit format to avoid the dayfirst warning
+                dayfirst=True,  # Optional: include for clarity; default is False
+            )
+        elif path.endswith(".xlsx"):
+            with pd.ExcelFile(path) as xls:
+                sheets = xls.sheet_names
+
+                loggedbb_cols = ["Start Time"] + list(self._B_K_Colmap.keys())
+                spectra_cols = ["Start Time"] + list(self._B_K_Spectramap.keys())
+
+                if(manufacturer == "B&K"):
+                    available_cols = pd.read_excel(xls, sheet_name="LoggedBB", nrows=0).columns.tolist()
+                    safe_cols = [c for c in loggedbb_cols if c in available_cols]
+
+                    self._master= pd.read_excel(xls, sheet_name="LoggedBB", usecols=safe_cols)
+                    self._master["Time"] = pd.to_datetime(self._master["Start Time"], errors="coerce", dayfirst=True)
+                    self._master.dropna(subset=["Time"], inplace=True)
+                    self._master.set_index("Time", inplace=True)
+                    self._master.drop(columns=["Start Time"], inplace=True)
+
+                    self._master.rename(columns=self._B_K_Colmap, inplace=True)
+
+                    if "LoggedSpectra" in sheets:
+                        available_cols = pd.read_excel(xls, sheet_name="LoggedSpectra", nrows=0).columns.tolist()
+                        safe_cols = [c for c in spectra_cols if c in available_cols]
+
+                        spectra_df = pd.read_excel(xls, sheet_name="LoggedSpectra", usecols=safe_cols)
+                        spectra_df["Time"] = pd.to_datetime(spectra_df["Start Time"], errors="coerce", dayfirst=True)
+                        spectra_df.dropna(subset=["Time"], inplace=True)
+                        spectra_df.set_index("Time", inplace=True)
+                        spectra_df.drop(columns=["Start Time"], inplace=True)
+
+                        spectra_df.rename(columns=self._B_K_Spectramap, inplace=True)
+
+                        self._master = pd.concat([self._master, spectra_df], axis=1, join="inner")
+
+                else:
+                    self._master= pd.read_excel(
+                        xls,
+                        index_col="Time",
+                        parse_dates=["Time"],
+                    )
+
         self._master.index = pd.to_datetime(self._master.index)
         self._master = self._master.sort_index(axis=1)
         self._start = self._master.index.min()
         self._end = self._master.index.max()
+
         self._assign_header()
+
+        print(self._master.index)
+        print(self._start)
+        print(self._end)
 
         # Assign day, evening, night periods
         self._night_start = None
@@ -41,9 +245,10 @@ class Log:
         self._decimals = 1
 
     def _assign_header(self):
-        csv_headers = self._master.columns.to_list()
-        superheaders = [item.split(" ")[0] for item in csv_headers]
-        subheaders = [item.split(" ")[1] for item in csv_headers]
+        headers = self._master.columns.to_list()
+        print(headers)
+        superheaders = [item.split(" ")[0] for item in headers]
+        subheaders = [item.split(" ")[1] for item in headers]
         # Convert numerical subheaders to ints
         for i in range(len(subheaders)):
             try:

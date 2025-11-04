@@ -29,9 +29,14 @@ if "period_last" not in st.session_state:
 with st.sidebar:
     # File Upload in expander container
     with st.expander("File Upload", expanded=True):
+        manufacturer_select = st.selectbox(
+            "Please select manufacturer",
+            ("B&K", "Other"),
+            index=0,
+        )
         files = st.file_uploader(
-            "Select one or more CSV files",
-            type="csv",
+            "Select one or more files",
+            type=["csv", "xlsx", "xlsm"],
             accept_multiple_files=True,
         )
         if not files:
@@ -65,18 +70,22 @@ with st.sidebar:
 
 # Main Window / Data Load
 with st.spinner("Processing Data...", show_time=True):
-    # Load each uploaded CSV into a pycoustic Log
+    # Load each uploaded file into a pycoustic Log
     logs: Dict[str, Log] = {}
     for upload_file in files:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+        _, ext = os.path.splitext(upload_file.name)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             tmp.write(upload_file.getbuffer())
             path = tmp.name
         try:
-            logs[upload_file.name] = Log(path)
+            logs[upload_file.name] = Log(path, manufacturer_select)
         except Exception as err:
             st.error(f"Failed to load `{upload_file.name}` into Pycoustic: {err}")
-        finally:
-            os.unlink(path)
+        else:
+            try:
+                os.unlink(path)
+            except PermissionError:
+             st.warning(f"Could not delete temporary file {path}")
 
     # Build Survey and pull summary + spectra
     summary_df = leq_spec_df = lmax_spec_df = None
