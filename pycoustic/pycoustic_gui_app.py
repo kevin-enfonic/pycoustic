@@ -4,7 +4,12 @@ from typing import List, Dict
 
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import streamlit as st
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+import pydeck as pdk
+
+
 
 from log import *
 from survey import *
@@ -20,6 +25,14 @@ COLOURS = {
 }
 # Graph template config
 TEMPLATE = "plotly"
+
+def sort_freqs(freq_list):
+    def key(x):
+        try:
+            return float(x) 
+        except ValueError:
+            return float('inf') 
+    return sorted(freq_list, key=key)
 
 if "apply_agg" not in st.session_state:
     st.session_state["apply_agg"] = False
@@ -110,32 +123,6 @@ with st.spinner("Processing Data...", show_time=True):
     # Helper list of “position” names (i.e. filenames)
     pos_list = list(logs.keys())
 
-    # Helper: turn a “spectra” DataFrame into a long‐format table for plotting
-    def spectra_to_rows(df: pd.DataFrame, pos_names: List[str]) -> pd.DataFrame | None:
-        if df is None:
-            return None
-        if not isinstance(df.columns, pd.MultiIndex):
-            tidy = df.reset_index().rename(columns={df.index.name or "index": "Period"})
-            if "Position" not in tidy.columns:
-                tidy.insert(0, "Position", pos_names[0] if pos_names else "Pos1")
-            return tidy
-
-        # If there is a MultiIndex
-        bands = [band for _, band in df.columns][: len({band for _, band in df.columns})]
-        set_len = len(bands)
-        blocks = []
-        for i, pos in enumerate(pos_names):
-            start, end = i * set_len, (i + 1) * set_len
-            if end > df.shape[1]:
-                break
-            sub = df.iloc[:, start:end].copy()
-            sub.columns = [str(b) for b in bands]
-            sub = sub.reset_index().rename(columns={df.index.names[-1] or "index": "Period"})
-            if "Position" not in sub.columns:
-                sub.insert(0, "Position", pos)
-            blocks.append(sub)
-        return pd.concat(blocks, ignore_index=True)
-
     #Create tabs
     ui_tabs = st.tabs(["Summary"] + pos_list)
 
@@ -147,51 +134,217 @@ with st.spinner("Processing Data...", show_time=True):
         else:
             st.warning(f"Summary unavailable: {summary_error}")
 
-        # Plot “Typical Leq Spectra” and “Lmax Spectra”, if available
-        for title, df_data in (
-            ("Typical Leq Spectra", leq_spec_df),
-            ("Lmax Spectra", lmax_spec_df),
-        ):
-            tidy = spectra_to_rows(df_data, pos_list)
-            if tidy is None:
-                continue
 
-            freq_cols = [c for c in tidy.columns if c not in ("Position", "Period", "A")]
-            if freq_cols:
-                fig = go.Figure()
-                for pos in pos_list:
-                    subset = tidy[tidy["Position"] == pos]
-                    for _, row in subset.iterrows():
-                        period_label = row["Period"]
-                        # Cast to string so .lower() is safe
-                        period_label_str = str(period_label)
-                        mode = (
-                            "lines+markers"
-                            if period_label_str.lower().startswith("day")
-                            else "lines"
-                        )
-                        label = (
-                            f"{pos} {period_label_str}"
-                            if len(pos_list) > 1
-                            else period_label_str
-                        )
-                        fig.add_trace(
-                            go.Scatter(
-                                x=freq_cols,
-                                y=row[freq_cols],
-                                mode=mode,
-                                name=label,
-                            )
-                        )
-                fig.update_layout(
-                    template=TEMPLATE,
-                    title=f"{title} - Day & Night",
-                    xaxis_title="Octave band (Hz)",
-                    yaxis_title="dB",
-                )
-                st.plotly_chart(fig, use_container_width=True)
+        # Dynamic Plot
+        tidy = pd.DataFrame()
+        for name, log in logs.items():
+            if st.session_state["apply_agg"]:
+                log_df = log.as_interval(t=period)
             else:
-                st.warning(f"No frequency columns found for `{title}`.")
+                log_df = log.get_data()
+
+            log_df["Position"] = name
+
+            if "Excluded" not in log_df.columns:
+                log_df["Excluded"] = False
+
+            log_df = log_df[log_df.get("Excluded", False) == False]
+            
+            if log_df.index.name in (None, ""):
+                log_df = log_df.reset_index()
+            elif log_df.index.name not in log_df.columns:
+                log_df.reset_index(inplace=True)
+
+            tidy = pd.concat([tidy, log_df], ignore_index=True)
+
+
+        tidy.columns = [
+            col if isinstance(col, str) else "_".join([str(i) for i in col if i not in (None, "")])
+            for col in tidy.columns
+        ]
+
+        datetime_cols = [c for c in tidy.columns if "date" in c.lower() or "time" in c.lower()]
+        if datetime_cols:
+            dt_col = datetime_cols[0]
+        else:
+            dt_col = None
+
+        # --- Melt to long format ---
+        id_vars = ["Position"]
+        if dt_col:
+            id_vars.append(dt_col)
+
+        tidy_long = tidy.melt(
+            id_vars=id_vars,  
+            var_name="Metric_Freq",
+            value_name="Value"
+        )
+
+        if dt_col:
+            tidy_long.rename(columns={dt_col: "DateTime"}, inplace=True)
+
+        tidy_long[["Metric", "Freq"]] = tidy_long["Metric_Freq"].str.rsplit("_", n=1, expand=True)
+        tidy_long["Freq"] = tidy_long["Freq"].replace(
+            {"A": "A", "C": "C", "Z": "Z"} 
+        )
+        tidy_long["Freq_num"] = pd.to_numeric(tidy_long["Freq"], errors="coerce")
+        tidy_long.drop(columns="Metric_Freq", inplace=True)
+
+        tidy_long["is_freq_specific"] = tidy_long["Freq_num"].notna()
+
+
+        # Selectors
+        col1, col2, col3 = st.columns([1, 1, 2]) 
+
+        with col1:
+            x_axis = st.selectbox("X-axis", ["Frequency", "Time"])
+
+        with col2:
+            if x_axis == "Frequency":
+                # Only metrics with numeric frequency
+                metric_options = tidy_long.loc[tidy_long["is_freq_specific"], "Metric"].unique()
+            else:  # Time or Position
+                metric_options = tidy_long["Metric"].unique()
+            y_axis = st.selectbox("Y-axis", metric_options)
+
+        with col3:
+            positions = st.multiselect(
+                "Positions", tidy_long["Position"].unique(), default=tidy_long["Position"].unique()
+            )
+
+        if x_axis == "Time":
+            # Identify available frequencies for the chosen metric
+            freq_options = tidy_long.loc[
+                tidy_long["Metric"] == y_axis, "Freq"
+            ].dropna().unique()
+            freq_options = sort_freqs(freq_options)
+
+            # Add frequency selector
+            colf1, colf2, colf3 = st.columns([1.5, 1, 1])
+            with colf1:
+                selected_freqs = st.multiselect(
+                    "Frequencies (bands / weightings)",
+                    freq_options,
+                    default=freq_options[:1]
+                )
+            with colf2:
+                start_date = st.date_input("Start Date", tidy_long["DateTime"].min().date())
+            with colf3:
+                end_date = st.date_input("End Date", tidy_long["DateTime"].max().date())
+
+        # --- Filter Data ---
+        plot_df = tidy_long[
+            (tidy_long["Position"].isin(positions)) &
+            (tidy_long["Metric"] == y_axis)
+        ]
+
+        if x_axis == "Time":
+            plot_df = plot_df[
+                (plot_df["DateTime"].dt.date >= start_date) &
+                (plot_df["DateTime"].dt.date <= end_date)
+            ]
+
+            plot_df["Freq_str"] = plot_df["Freq"].astype(str)
+            plot_df = plot_df[plot_df["Freq_str"].isin(selected_freqs)]
+
+
+        if x_axis == "Frequency":
+            numeric_freqs = plot_df["Freq_num"].dropna().unique()
+            letter_freqs = plot_df.loc[plot_df["Freq_num"].isna(), "Freq"].unique()
+
+            numeric_freqs_sorted = sorted(numeric_freqs)
+            letter_freqs_sorted = sorted(letter_freqs)  
+
+            freq_order = list(map(str, numeric_freqs_sorted)) + list(letter_freqs_sorted)
+
+            plot_df["Freq_str"] = plot_df["Freq"].astype(str)
+            plot_df["Freq_str"] = pd.Categorical(plot_df["Freq_str"], categories=freq_order, ordered=True)
+
+            plot_df = plot_df.groupby(["Position", "Freq_str"])["Value"].mean().reset_index()
+
+            fig = px.line(
+                plot_df,
+                x="Freq_str",
+                y="Value",
+                color="Position",
+                markers=True
+            )
+            fig.update_xaxes(title="Frequency (Hz)", type="log")
+
+        elif x_axis == "Time":
+            plot_df["ColourGroup"] = plot_df["Position"] + "," + plot_df["Metric"] + "_" + plot_df["Freq"].astype(str)
+
+            fig = px.line(
+                plot_df,
+                x="DateTime",
+                y="Value",
+                color="ColourGroup",
+                hover_data=["Metric", "Freq", "Position"]
+
+            )
+            fig.update_xaxes(title="Time")
+
+        elif x_axis == "Position":
+            fig = px.bar(
+                plot_df,
+                x="Position",
+                y="Value",
+                color="Metric",
+            )
+            fig.update_xaxes(title="Position")
+
+        # --- Common Styling ---
+        fig.update_layout(
+            yaxis_title=f"{y_axis} (dB)",
+            title=f"{y_axis} vs {x_axis}",
+            template="plotly_white",
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        
+        # Map
+        st.title("Measurement Locations")
+
+        if "locations" in st.session_state and st.session_state["locations"]:
+            df = pd.DataFrame.from_dict(st.session_state["locations"], orient="index").reset_index()
+            df.columns = ["Position", "lat", "lon"]
+
+            # Compute center of map (mean latitude & longitude)
+            center_lat = df["lat"].mean()
+            center_lon = df["lon"].mean()
+
+            # Pydeck scatter plot layer
+            layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=df,
+                get_position='[lon, lat]',
+                get_color='[200, 30, 0, 160]',
+                get_radius=50,
+                pickable=True,
+            )
+
+            # Initial view with zoom control
+            view_state = pdk.ViewState(
+                latitude=center_lat,
+                longitude=center_lon,
+                zoom=12,   # <-- Adjust zoom level (higher = closer)
+                pitch=0
+            )
+
+            r = pdk.Deck(
+                layers=[layer],
+                initial_view_state=view_state,
+                map_style='road',  # <-- Satellite view
+                tooltip={"text": "{Position}"}
+            )
+
+            st.pydeck_chart(r)
+        else:
+            st.info("No locations saved yet. Add coordinates in the position pages.")
+
+
+
 
     # Position‐Specific Tabs
     for tab, uf in zip(ui_tabs[1:], files):
@@ -222,6 +375,33 @@ with st.spinner("Processing Data...", show_time=True):
                 except Exception as e:
                     st.error(f"Failed to load raw data for `{uf.name}`: {e}")
                     continue
+
+            if "Excluded" not in df_used.columns:
+                df_used["Excluded"] = False
+
+            df_used = df_used[df_used.get("Excluded", False) == False]
+
+            #measurement location
+            with st.expander("Measurement Location", expanded=True):
+                with st.form(key=f"location_{uf.name}_form"):
+                    col1, col2, col3 = st.columns([2, 1, 1])
+
+                    position_name = col1.text_input("Position name", value="")
+                    latitude = col2.number_input("Latitude", format="%.6f")
+                    longitude = col3.number_input("Longitude", format="%.6f")
+
+                    # Submit button triggers update only when pressed
+                    submitted = st.form_submit_button("Save")
+                    if submitted:
+                        if "locations" not in st.session_state:
+                            st.session_state["locations"] = {}
+
+                        st.session_state["locations"][position_name] = {
+                            "lat": latitude,
+                            "lon": longitude
+                        }
+                        st.success(f"Saved location for {position_name}")
+
 
             # Prepare a flattened‐column header copy JUST FOR PLOTTING
             df_plot = df_used.copy()
@@ -284,3 +464,38 @@ with st.spinner("Processing Data...", show_time=True):
             # --- Finally, display the TABLE with MultiIndex intact ---
             st.subheader(subheader)
             st.dataframe(df_used, hide_index=True)
+
+            # df_display = df_used.copy()
+
+            # # Reset index if you want a stable row identifier
+            # if df_display.index.name is None or df_display.index.name == "":
+            #     df_display.reset_index(inplace=True)
+            #     df_display.rename(columns={"index": "RowID"}, inplace=True)
+
+            # gb = GridOptionsBuilder.from_dataframe(df_display)
+            # gb.configure_selection("multiple", use_checkbox=True)
+            # gb.configure_default_column(
+            #     editable=False,  # don't allow editing unless you want
+            #     groupable=True,
+            #     resizable=True,
+            #     filter=True,
+            #     sortable=True,
+            # )
+            # gb.configure_grid_options(domLayout='normal')  # can also try 'autoHeight'
+            # grid_options = gb.build()
+
+            # grid_response = AgGrid(
+            #     df_display,
+            #     gridOptions=grid_options,
+            #     update_mode=GridUpdateMode.SELECTION_CHANGED,
+            #     height=400,
+            #     allow_unsafe_jscode=True,  # for better styling if needed
+            # )
+            
+            # selected_rows = grid_response['selected_rows']
+
+            # if st.button("Exclude Selected Rows"):
+            #     indices_to_exclude = [row["index"] for row in selected_rows if "index" in row]
+            #     df_used.loc[indices_to_exclude, "Excluded"] = True
+
+            # log.set_data(df_used)

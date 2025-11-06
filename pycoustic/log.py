@@ -434,6 +434,9 @@ class Log:
         return self._master
     #ss--
 
+    def set_data(self, data):
+        self._master = data
+
     def get_antilogs(self):
         return self._antilogs
 

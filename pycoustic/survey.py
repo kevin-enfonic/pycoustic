@@ -134,56 +134,39 @@ class Survey:
         :return: A dataframe presenting a summary of the Leq and Lmax values requested.
         """
         combi = pd.DataFrame()
+
         if leq_cols is None:
-            leq_cols = [("Leq", "A")]
-        if max_cols is None:
-            max_cols = [("Lmax", "A")]
+            leq_cols = [
+                ("Leq", "A"), ("L90", "A"), ("L10", "A"), ("Lmax", "A"), ("Lmin", "A")
+            ]
 
         for key, lg in self._logs.items():
-            period_blocks = []
-            period_names = []
+            period_blocks = {}
 
-            # Day
-            days = lg.leq_by_date(lg.get_period(data=lg.get_antilogs(), period="days"), cols=leq_cols)
-            days.sort_index(inplace=True)
-            period_blocks.append(days)
-            period_names.append("Daytime")
+            # ==== Day =====
+            period_blocks["Daytime"] = lg.leq_by_date(
+                lg.get_period(data=lg.get_antilogs(), period="days"), 
+                cols=leq_cols
+            )
 
-            # Evening (optional)
+            # ==== Evening ====
             if lg.is_evening():
-                evenings = lg.leq_by_date(lg.get_period(data=lg.get_antilogs(), period="evenings"), cols=leq_cols)
-                evenings.sort_index(inplace=True)
-                period_blocks.append(evenings)
-                period_names.append("Evening")
+                period_blocks["Evening"] = lg.leq_by_date(
+                    lg.get_period(data=lg.get_antilogs(), period="evenings"),
+                    cols=leq_cols
+                )
 
-            # Night Leq
-            nights = lg.leq_by_date(lg.get_period(data=lg.get_antilogs(), period="nights"), cols=leq_cols)
-            nights.sort_index(inplace=True)
-            period_blocks.append(nights)
-            period_names.append("Night-time")
+            period_blocks["Night-time"] = lg.leq_by_date(
+                lg.get_period(data=lg.get_antilogs(), period="nights"),
+                cols=leq_cols
+            )
 
-            # Night max
-            maxes = lg.as_interval(t=lmax_t)
-            maxes = lg.get_period(data=maxes, period="nights", night_idx=True)
-            maxes = lg.get_nth_high_low(n=lmax_n, data=maxes)[max_cols]
-            maxes.sort_index(inplace=True)
-            try:
-                maxes.index = pd.to_datetime(maxes.index)
-                maxes.index = maxes.index.date
-            except Exception as e:
-                print(f"Error converting index to date: {e}")
-            maxes.index.name = None
-            period_blocks.append(maxes)
-            period_names.append("Night-time")
-
-            # Build Period as a proper column level to avoid manual header length mismatches
-            summary = pd.concat(objs=period_blocks, axis=1, keys=period_names, names=["Period"])
-
-            # Add the per-log super level (kept as before)
+            # --- Combine periods ---
+            summary = pd.concat(period_blocks.values(), axis=1, keys=period_blocks.keys(), names=["Period"])
             summary = self._insert_multiindex(df=summary, super=key)
+            combi = pd.concat([combi, summary], axis=0)
 
-            # Stack logs by rows; columns remain aligned across logs
-            combi = pd.concat(objs=[combi, summary], axis=0)
+            print(combi)
 
         # No manual header insertion needed anymore; Period is already a column level
         return combi
