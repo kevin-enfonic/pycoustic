@@ -434,7 +434,7 @@ class Log:
         return self._master
     #ss--
 
-    def set_data(self, data):
+    def set_data(self, data): # For Future data exclusion #
         self._master = data
 
     def get_antilogs(self):
