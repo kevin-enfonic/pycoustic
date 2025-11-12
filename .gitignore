@@ -3,6 +3,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyd
+*.pyo
 
 # C extensions
 *.so
@@ -23,6 +25,10 @@ dist/
 
 # VS Code settings
 .vscode/
+.idea/
+
+
+.vs/
 
 # System files
 .DS_Store
@@ -35,3 +41,6 @@ Thumbs.db
 data/
 *.wav
 *.csv
+*.log
+tests/*.csv
+tests/*.log
