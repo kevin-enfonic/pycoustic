@@ -21,9 +21,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="pycoustic\log.py" />
-    <Compile Include="pycoustic\pycoustic_gui_app.py" />
     <Compile Include="pycoustic\survey.py" />
-    <Compile Include="pycoustic\tkgui.py" />
     <Compile Include="pycoustic\weather.py" />
     <Compile Include="pycoustic\__init__.py" />
     <Compile Include="streamlit\pycoustic_gui_app.py" />
