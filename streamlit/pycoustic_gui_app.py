@@ -11,8 +11,8 @@ import pydeck as pdk
 
 
 
-from pycoustic.log import *
-from pycoustic.survey import *
+from ..pycoustic.log import *
+from ..pycoustic.survey import *
 
 # Streamlit app config
 st.set_page_config(page_title="Pycoustic Acoustic Survey Explorer", layout="wide")
