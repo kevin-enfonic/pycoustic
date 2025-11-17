@@ -24,13 +24,13 @@
     <Compile Include="pycoustic\survey.py" />
     <Compile Include="pycoustic\weather.py" />
     <Compile Include="pycoustic\__init__.py" />
-    <Compile Include="streamlit\pycoustic_gui_app.py" />
+    <Compile Include="pycoustic\Streamlit\pycoustic_gui_app.py" />
     <Compile Include="tests\tests.py" />
     <Compile Include="tests\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="pycoustic" />
-    <Folder Include="Streamlit\" />
+    <Folder Include="pycoustic\Streamlit\" />
     <Folder Include="tests" />
   </ItemGroup>
   <ItemGroup>
