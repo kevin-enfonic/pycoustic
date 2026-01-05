@@ -465,39 +465,3 @@ with st.spinner("Processing Data...", show_time=True):
             st.subheader(subheader)
             st.dataframe(df_used, hide_index=True)
 
-
-            ### For excluding data in the future
-            # df_display = df_used.copy()
-
-            # # Reset index if you want a stable row identifier
-            # if df_display.index.name is None or df_display.index.name == "":
-            #     df_display.reset_index(inplace=True)
-            #     df_display.rename(columns={"index": "RowID"}, inplace=True)
-
-            # gb = GridOptionsBuilder.from_dataframe(df_display)
-            # gb.configure_selection("multiple", use_checkbox=True)
-            # gb.configure_default_column(
-            #     editable=False,  # don't allow editing unless you want
-            #     groupable=True,
-            #     resizable=True,
-            #     filter=True,
-            #     sortable=True,
-            # )
-            # gb.configure_grid_options(domLayout='normal')  # can also try 'autoHeight'
-            # grid_options = gb.build()
-
-            # grid_response = AgGrid(
-            #     df_display,
-            #     gridOptions=grid_options,
-            #     update_mode=GridUpdateMode.SELECTION_CHANGED,
-            #     height=400,
-            #     allow_unsafe_jscode=True,  # for better styling if needed
-            # )
-            
-            # selected_rows = grid_response['selected_rows']
-
-            # if st.button("Exclude Selected Rows"):
-            #     indices_to_exclude = [row["index"] for row in selected_rows if "index" in row]
-            #     df_used.loc[indices_to_exclude, "Excluded"] = True
-
-            # log.set_data(df_used)

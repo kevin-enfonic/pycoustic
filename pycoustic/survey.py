@@ -113,7 +113,7 @@ class Survey:
             periods[key] = self._logs[key].get_period_times()
         return periods
 
-    def resi_summary(self, leq_cols=None, max_cols=None, lmax_n=10, lmax_t="2min"):
+    def resi_summary(self, leq_cols=None, max_cols=None, min_cols=None):
         """
         Get a dataframe summarising the parameters relevant to assessment of internal ambient noise levels in
         UK residential property assessments. Daytime and night-time Leqs, and nth-highest Lmax values all presented
@@ -136,30 +136,45 @@ class Survey:
         combi = pd.DataFrame()
 
         if leq_cols is None:
-            leq_cols = [
-                ("Leq", "A"), ("L90", "A"), ("L10", "A"), ("Lmax", "A"), ("Lmin", "A")
+            leq_cols = [ ####### LMAX cannot be included as an Leq col. IT will be averaged when it shouldnt be ########
+                         ####### Should only be Max/Min #######
+                ("Leq", "A"), ("L90", "A"), ("L10", "A")
+            ]
+
+        if max_cols is None:
+            max_cols = [
+                ("Lmax", "A")
+            ]
+
+        if min_cols is None:
+            min_cols = [
+                ("Lmin", "A")
             ]
 
         for key, lg in self._logs.items():
             period_blocks = {}
 
-            # ==== Day =====
-            period_blocks["Daytime"] = lg.leq_by_date(
-                lg.get_period(data=lg.get_antilogs(), period="days"), 
-                cols=leq_cols
-            )
+            periods = {
+                "Daytime": lg.get_period(lg.get_antilogs(), "days"),
+                "Night-time": lg.get_period(lg.get_antilogs(), "nights"),
+            }
 
-            # ==== Evening ====
             if lg.is_evening():
-                period_blocks["Evening"] = lg.leq_by_date(
-                    lg.get_period(data=lg.get_antilogs(), period="evenings"),
-                    cols=leq_cols
-                )
+                periods["Evening"] = lg.get_period(lg.get_antilogs(), "evenings")
 
-            period_blocks["Night-time"] = lg.leq_by_date(
-                lg.get_period(data=lg.get_antilogs(), period="nights"),
-                cols=leq_cols
-            )
+            for period_name, data in periods.items():
+                # --- Leq-type metrics ---
+                leq_df = lg.leq_by_date(data, cols=leq_cols)
+
+                # --- Max metrics ---
+                max_df = lg.extrema_by_date(data, cols=max_cols, how="max")
+
+                # --- Min metrics ---
+                min_df = lg.extrema_by_date(data, cols=min_cols, how="min")
+
+                # --- Combine ---
+                block = pd.concat([leq_df, max_df, min_df], axis=1)
+                period_blocks[period_name] = block
 
             # --- Combine periods ---
             summary = pd.concat(period_blocks.values(), axis=1, keys=period_blocks.keys(), names=["Period"])
@@ -170,6 +185,7 @@ class Survey:
 
         # No manual header insertion needed anymore; Period is already a column level
         return combi
+
 #test
     def modal(self, cols=None, by_date=False, day_t="60min", evening_t="60min", night_t="15min"):
         #TODO rename second level index so it is not 'date'

@@ -424,6 +424,48 @@ class Log:
         if cols is None:
             cols = ["Leq"]
         return data[cols].groupby(data.index.date).mean().apply(lambda x: np.round((10 * np.log10(x)), self._decimals))
+    
+    def extrema_by_date(self, data, cols, how="max"):
+        """
+        Compute daily extrema (max or min) for given columns from **antilog** data,
+        preserving the same output format as leq_by_date (MultiIndex compatible).
+
+        :param data: DataFrame with raw antilog values, indexed by Timestamp
+        :param cols: List of column names or tuples to process
+        :param how: 'max' for daily maxima, 'min' for daily minima
+        :return: DataFrame indexed by date with extrema in dB, column format matching leq_by_date
+        """
+        if how not in ["max", "min"]:
+            raise ValueError("how must be 'max' or 'min'")
+
+        extrema_df = pd.DataFrame()
+
+        for col in cols:
+            # Select column
+            if isinstance(col, tuple):
+                series = data[col]
+                col_name = col  # Keep as tuple to preserve MultiIndex style
+            else:
+                series = data[col]
+                col_name = (col, "")  # Single-level columns become tuple for consistency
+
+            # Convert antilog to dB
+            series_db = 10 * np.log10(series)
+
+            # Group by date and compute extrema
+            if how == "max":
+                grouped = series_db.groupby(series_db.index.date).max()
+            else:
+                grouped = series_db.groupby(series_db.index.date).min()
+
+            # Convert Series to DataFrame with proper column
+            grouped_df = pd.DataFrame(grouped)
+            grouped_df.columns = pd.MultiIndex.from_tuples([col_name])
+
+            # Append to output
+            extrema_df = pd.concat([extrema_df, grouped_df], axis=1)
+
+        return extrema_df
 
     # ###########################---PUBLIC---######################################
     # ss++
