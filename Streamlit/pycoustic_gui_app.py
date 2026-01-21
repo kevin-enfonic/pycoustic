@@ -358,7 +358,7 @@ with st.spinner("Processing Data...", show_time=True):
             if st.session_state["apply_agg"]:
                 # 1) Re-aggregate / resample using the chosen period
                 try:
-                    df_used = log.as_interval(t=period)
+                    df_used = log.as_interval(t=period, leq_cols = ["Leq", "L90", "L10"], max_pivots = [("Lmax", "A"), ("Lmin", "A")])
                     df_used = df_used.reset_index().rename(
                         columns={df_used.index.name or "index": "Timestamp"}
                     )
