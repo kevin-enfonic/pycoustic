@@ -322,7 +322,7 @@ class Log:
         if data is None:
             data = self._antilogs
         if cols is None:
-            cols = ["Leq", "L90"]
+            cols = ["Leq", "L90", "L10"]
         # Loop through column superheaders and recompute as a longer Leq
         recomputed = pd.DataFrame(columns=data.columns)
         for idx in cols:
@@ -501,9 +501,9 @@ class Log:
         if antilogs is None:
             antilogs = self._antilogs
         if leq_cols is None:
-            leq_cols = ["Leq", "L90"]
+            leq_cols = ["Leq", "L90", "L10"]
         if max_pivots is None:
-            max_pivots = [("Lmax", "A")]
+            max_pivots = [("Lmax", "A"), ("Lmin", "A")]
         leq = self._recompute_leq(data=antilogs, t=t, cols=leq_cols)
         maxes = self._recompute_max(data=data, t=t, pivot_cols=max_pivots, hold_spectrum=hold_spectrum)
         conc = pd.concat([leq, maxes], axis=1).sort_index(axis=1).dropna(axis=1, how="all")
@@ -552,7 +552,7 @@ class Log:
         if round_decimals:
             data = data.round()
         if cols is None:
-            cols = [("L90", "A")]
+            cols = [("L90", "A"), ("L10", "A")]
         if by_date:
             dates = np.unique(data.index.date)
             modes_by_date = pd.DataFrame()
