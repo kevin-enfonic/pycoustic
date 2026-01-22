@@ -322,7 +322,7 @@ class Log:
         if data is None:
             data = self._antilogs
         if cols is None:
-            cols = ["Leq", "L90", "L10"]
+            cols = ["Leq"]
         # Loop through column superheaders and recompute as a longer Leq
         recomputed = pd.DataFrame(columns=data.columns)
         for idx in cols:
@@ -388,7 +388,44 @@ class Log:
         if isinstance(df, pd.Series):
             df = pd.DataFrame(data=df)
         return df.set_index(idx, inplace=False)
-#test
+    
+    def _recompute_modal(self, data=None, t="15min", cols=None, source_col="Leq"):
+        """
+        Recompute Lx (percentile) values from shorter measurements to longer periods using the Leq values.
+        
+        :param data: Input data 
+        :param t: Resample period (e.g., '15min')
+        :param cols: Columns to recompute
+        :param percentile: Which percentile to compute (e.g., 10 for L10, 90 for L90)
+        :return: DataFrame with recomputed percentiles
+        """
+        if data is None:
+            data = self._master
+        if cols is None:
+            cols = ["L90", "L10"]
+
+        percentile_map = {"L90": 10, "L10": 90}
+        
+        series_to_use = data[source_col]
+        if isinstance(series_to_use, pd.DataFrame):
+            series_to_use = series_to_use.iloc[:, 0]
+        
+        resampled_index = data[source_col].resample(t).mean().index
+        recomputed = pd.DataFrame(index=resampled_index)
+
+        for col in cols:
+            if col in data.columns:
+                pct = percentile_map.get(col, None)
+                if pct is not None:
+                    # Ensure we pass a Series to apply
+                    recomputed[col] = (
+                        series_to_use  
+                        .resample(t)
+                        .apply(lambda x: np.round(np.percentile(x, pct), self._decimals))
+                    )
+
+        return self._none_if_zero(recomputed)
+    #test
     def get_period(self, data=None, period="days", night_idx=True):
         """
         Private method to get data for daytime, evening or night-time periods.
@@ -483,8 +520,8 @@ class Log:
         return self._antilogs
 
 
-    def as_interval(self, data=None, antilogs=None, t="15min", leq_cols=None, max_pivots=None,
-                    hold_spectrum=False):
+    def as_interval(self, data=None, antilogs=None, t="15min", leq_cols=None, max_pivots=None, 
+                    modal_cols=None, hold_spectrum=False):
         """
         Returns a dataframe recomputed as longer periods. This implements the private leq and max recalculations
         :param data: input dataframe, usually master
@@ -501,12 +538,15 @@ class Log:
         if antilogs is None:
             antilogs = self._antilogs
         if leq_cols is None:
-            leq_cols = ["Leq", "L90", "L10"]
+            leq_cols = ["Leq"]
+        if modal_cols is None:
+            modal_cols = ["L90", "L10"]
         if max_pivots is None:
             max_pivots = [("Lmax", "A"), ("Lmin", "A")]
         leq = self._recompute_leq(data=antilogs, t=t, cols=leq_cols)
+        modals = self._recompute_modal(data=data, t=t)
         maxes = self._recompute_max(data=data, t=t, pivot_cols=max_pivots, hold_spectrum=hold_spectrum)
-        conc = pd.concat([leq, maxes], axis=1).sort_index(axis=1).dropna(axis=1, how="all")
+        conc = pd.concat([leq, maxes, modals], axis=1).dropna(axis=1, how="all")
         conc = self._append_night_idx(data=conc)    # Re-append night indices
         return conc.dropna(axis=0, how="all")
 
