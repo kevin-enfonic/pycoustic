@@ -24,13 +24,27 @@
     <Compile Include="pycoustic\survey.py" />
     <Compile Include="pycoustic\weather.py" />
     <Compile Include="pycoustic\__init__.py" />
+    <Compile Include="Streamlit\app.py" />
+    <Compile Include="Streamlit\src\components\sidebar.py" />
+    <Compile Include="Streamlit\src\components\plotter.py" />
+    <Compile Include="Streamlit\src\page_modules\Home_Page.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Streamlit\src\page_modules\Log_Page.py" />
+    <Compile Include="Streamlit\src\page_modules\Map_Page.py" />
+    <Compile Include="Streamlit\src\page_modules\Summary_Page.py" />
     <Compile Include="Streamlit\pycoustic_gui_app.py" />
+    <Compile Include="Streamlit\src\utils\pycoustic_interface.py" />
     <Compile Include="tests\tests.py" />
     <Compile Include="tests\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="pycoustic" />
     <Folder Include="Streamlit\" />
+    <Folder Include="Streamlit\src\components\" />
+    <Folder Include="Streamlit\src\" />
+    <Folder Include="Streamlit\src\utils\" />
+    <Folder Include="Streamlit\src\page_modules\" />
     <Folder Include="tests" />
   </ItemGroup>
   <ItemGroup>

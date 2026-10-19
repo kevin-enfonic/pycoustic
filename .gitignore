@@ -44,3 +44,6 @@ data/
 *.log
 tests/*.csv
 tests/*.log
+.fake
+
+.bundle

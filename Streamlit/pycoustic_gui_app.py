@@ -6,13 +6,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+#from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 import pydeck as pdk
 
 
 
-from pycoustic.log import *
-from pycoustic.survey import *
+from pycoustic.log import Log
+from pycoustic.survey import Survey
+
 
 # Streamlit app config
 st.set_page_config(page_title="Pycoustic Acoustic Survey Explorer", layout="wide")
@@ -358,7 +359,7 @@ with st.spinner("Processing Data...", show_time=True):
             if st.session_state["apply_agg"]:
                 # 1) Re-aggregate / resample using the chosen period
                 try:
-                    df_used = log.as_interval(t=period, leq_cols = ["Leq", "L90", "L10"], max_pivots = [("Lmax", "A"), ("Lmin", "A")])
+                    df_used = log.as_interval(t=period)
                     df_used = df_used.reset_index().rename(
                         columns={df_used.index.name or "index": "Timestamp"}
                     )

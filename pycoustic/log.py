@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import datetime as dt
-
+import os
 
 
 class Log:
@@ -389,42 +389,81 @@ class Log:
             df = pd.DataFrame(data=df)
         return df.set_index(idx, inplace=False)
     
-    def _recompute_modal(self, data=None, t="15min", cols=None, source_col="Leq"):
-        """
-        Recompute Lx (percentile) values from shorter measurements to longer periods using the Leq values.
+    # def _recompute_modal(self, data=None, t="15min", cols=None, source_col="Leq"):
+    #     """
+    #     Recompute Lx (percentile) values from shorter measurements to longer periods using the Leq values.
         
-        :param data: Input data 
-        :param t: Resample period (e.g., '15min')
-        :param cols: Columns to recompute
-        :param percentile: Which percentile to compute (e.g., 10 for L10, 90 for L90)
-        :return: DataFrame with recomputed percentiles
+    #     :param data: Input data 
+    #     :param t: Resample period (e.g., '15min')
+    #     :param cols: Columns to recompute
+    #     :param percentile: Which percentile to compute (e.g., 10 for L10, 90 for L90)
+    #     :return: DataFrame with recomputed percentiles
+    #     """
+    #     if data is None:
+    #         data = self._master
+    #     if cols is None:
+    #         cols = ["L90", "L10"]
+
+    #     percentile_map = {"L90": 10, "L10": 90}
+        
+    #     series_to_use = data[source_col]
+    #     if isinstance(series_to_use, pd.DataFrame):
+    #         series_to_use = series_to_use.iloc[:, 0]
+        
+    #     resampled_index = data[source_col].resample(t).mean().index
+    #     recomputed = pd.DataFrame(index=resampled_index)
+
+    #     for col in cols:
+    #         if col in data.columns:
+    #             pct = percentile_map.get(col, None)
+    #             if pct is not None:
+    #                 # Ensure we pass a Series to apply
+    #                 recomputed[col] = (
+    #                     series_to_use  
+    #                     .resample(t)
+    #                     .apply(lambda x: np.round(np.percentile(x, pct), self._decimals))
+    #                 )
+
+    #     return self._none_if_zero(recomputed)
+    
+    def _recompute_modal(self, data=None, t="15min", cols=None, source_col=("Leq", "A")):
+        """
+        Estimate longer-period L90/L10 values from shorter-period LAeq samples.
         """
         if data is None:
             data = self._master
+
         if cols is None:
             cols = ["L90", "L10"]
 
-        percentile_map = {"L90": 10, "L10": 90}
-        
+        percentile_map = {
+            "L90": 10,
+            "L10": 90
+        }
+
+        # Explicitly use A-weighted Leq
         series_to_use = data[source_col]
-        if isinstance(series_to_use, pd.DataFrame):
-            series_to_use = series_to_use.iloc[:, 0]
-        
-        resampled_index = data[source_col].resample(t).mean().index
+
+        resampled_index = series_to_use.resample(t).mean().index
         recomputed = pd.DataFrame(index=resampled_index)
 
         for col in cols:
-            if col in data.columns:
-                pct = percentile_map.get(col, None)
-                if pct is not None:
-                    # Ensure we pass a Series to apply
-                    recomputed[col] = (
-                        series_to_use  
-                        .resample(t)
-                        .apply(lambda x: np.round(np.percentile(x, pct), self._decimals))
+            pct = percentile_map.get(col)
+
+            if pct is not None:
+                recomputed[col] = (
+                    series_to_use
+                    .resample(t)
+                    .apply(
+                        lambda x: np.round(
+                            np.percentile(x.dropna(), pct),
+                            self._decimals
+                        ) if len(x.dropna()) else np.nan
                     )
+                )
 
         return self._none_if_zero(recomputed)
+    
     #test
     def get_period(self, data=None, period="days", night_idx=True):
         """
